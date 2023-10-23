@@ -5,9 +5,15 @@ const EEPROM_SIZES = [512, 2 * 1024];
 const SRAM_SIZES = [32 * 1024];
 const FLASH_RAM_SIZES = [128 * 1024];
 
+const ALL_SIZES = EEPROM_SIZES.concat(SRAM_SIZES, FLASH_RAM_SIZES);
+
 export default class N64Util {
   static needsEndianSwap(arrayBuffer) {
     return !N64Util.isEepromSave(arrayBuffer);
+  }
+
+  static isValidSize(arrayBuffer) {
+    return (ALL_SIZES.indexOf(arrayBuffer.byteLength) >= 0);
   }
 
   static isEepromSave(arrayBuffer) {
