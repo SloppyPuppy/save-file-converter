@@ -10,7 +10,8 @@ If there is no cart save, then the file is just the 4 mempack blocks.
 In most cases we can tell what the file contains by checking its size: 0x20000 bytes total for the optional 4 mempack saves, plus whatever the cart size is.
 
 However the file size of a Flash RAM save is the same as a save that's just the 4 mempacks. We can attempt to disambiguate by trying to parse the mempack blocks.
-A file that is all empty (e.g. all 0x00s) is impossible to disambiguate. Bad luck may also result in a Flash RAM file that accidentally parses as mempack blocks
+A file that is all empty (e.g. all 0x00s) is not a valid mempack file, so it must be a cart save.
+Bad luck may result in a Flash RAM file that accidentally parses as mempack blocks
 */
 
 import N64Util from '../../util/N64';
@@ -20,13 +21,6 @@ import SaveFilesUtil from '../../util/SaveFiles';
 const NUM_MEMPACKS = 4; // All 4 potential controller paks can be stored in a MiSTer save file
 const ALL_MEMPACK_SIZE = N64MempackSaveData.TOTAL_SIZE * NUM_MEMPACKS;
 const MEMPACK_DATA_INDEX_PREFIX = 'mempack-data';
-
-function allBytesAreEqual(arrayBuffer, value) {
-  const uint8Array = new Uint8Array(arrayBuffer);
-  const count = uint8Array.reduce((accumulator, i) => ((i === value) ? accumulator + 1 : accumulator), 0);
-
-  return (count === arrayBuffer.byteLength);
-}
 
 function getAllMempackDataIndexes() {
   return [...Array(NUM_MEMPACKS).keys()];
@@ -43,6 +37,7 @@ function allMempackDataIsValid(arrayBuffer) {
   try {
     mempackData.forEach((i) => N64MempackSaveData.createFromN64MempackData(i));
   } catch (e) {
+    console.log(e);
     valid = false;
   }
 
@@ -96,12 +91,6 @@ export default class MisterN64SaveData {
       // Here we have both cart data and controller pak data
       cartData = misterArrayBuffer.slice(0, ALL_MEMPACK_SIZE - misterArrayBuffer.byteLength);
       allMempackData = misterArrayBuffer.slice(ALL_MEMPACK_SIZE - misterArrayBuffer.byteLength);
-    } else if (allBytesAreEqual(misterArrayBuffer, 0x00)) {
-      // If the size is the same as either a Flash RAM save with no controller pak data, or no cart save and just controller pak data,
-      // and data is all zeros, then it would parse correctly as controller pak data so it's ambiguous whether it represents
-      // cart data or controller pak data and we'll report that we have both
-      cartData = misterArrayBuffer;
-      allMempackData = misterArrayBuffer;
     } else if (allMempackDataIsValid(misterArrayBuffer)) {
       // Here there is some non-zero data but the size indicated that it could be either a Flash RAM save with no controller pak data,
       // or no cart save and just controller pak data. So, we will try to parse it as controller pak data to determine which it is
@@ -141,6 +130,10 @@ export default class MisterN64SaveData {
     }
 
     if (index.beginsWith(MEMPACK_DATA_INDEX_PREFIX)) {
+      if (this.rawMempackArrayBuffers === null) {
+        return null;
+      }
+
       const mempackIndex = parseInt(index.charAt(index.length - 1), 10);
       return this.rawMempackArrayBuffers[mempackIndex];
     }
