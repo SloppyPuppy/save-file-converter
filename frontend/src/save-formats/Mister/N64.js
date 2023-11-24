@@ -10,8 +10,12 @@ If there is no cart save, then the file is just the 4 mempack blocks.
 In most cases we can tell what the file contains by checking its size: 0x20000 bytes total for the optional 4 mempack saves, plus whatever the cart size is.
 
 However the file size of a Flash RAM save is the same as a save that's just the 4 mempacks. We can attempt to disambiguate by trying to parse the mempack blocks.
-A file that is all empty (e.g. all 0x00s) is not a valid mempack file, so it must be a cart save.
-Bad luck may result in a Flash RAM file that accidentally parses as mempack blocks
+Bad luck may result in a Flash RAM file that accidentally parses as mempack blocks.
+
+The MiSTer initializes mempack data to all 0x00, which is not a valid mempack file but the MiSTer considers it valid. So a Flash RAM/4 mempack file that is
+all 0x00s might be either Flash RAM or mempack data
+
+There's a bit of discussion about the format here: https://github.com/RobertPeip/Mister64/issues/12
 */
 
 import N64Util from '../../util/N64';
@@ -21,13 +25,18 @@ import SaveFilesUtil from '../../util/SaveFiles';
 const NUM_MEMPACKS = 4; // All 4 potential controller paks can be stored in a MiSTer save file
 const ALL_MEMPACK_SIZE = N64MempackSaveData.TOTAL_SIZE * NUM_MEMPACKS;
 const MEMPACK_DATA_INDEX_PREFIX = 'mempack-data';
+const MEMPACK_DATA_INDEXES = [...Array(NUM_MEMPACKS).keys()];
+const EMPTY_MEMPACK_VALUE = 0x00;
 
-function getAllMempackDataIndexes() {
-  return [...Array(NUM_MEMPACKS).keys()];
+function arrayBufferContainsAllValue(arrayBuffer, value) {
+  const uint8Array = new Uint8Array(arrayBuffer);
+  const containsOtherValue = uint8Array.some((x) => x !== value);
+
+  return !containsOtherValue;
 }
 
 function splitAllMempackDatas(arrayBuffer) {
-  return getAllMempackDataIndexes().map((i) => arrayBuffer.slice(i * N64MempackSaveData.TOTAL_SIZE, (i + 1) * N64MempackSaveData.TOTAL_SIZE));
+  return MEMPACK_DATA_INDEXES.map((i) => arrayBuffer.slice(i * N64MempackSaveData.TOTAL_SIZE, (i + 1) * N64MempackSaveData.TOTAL_SIZE));
 }
 
 function allMempackDataIsValid(arrayBuffer) {
@@ -35,9 +44,8 @@ function allMempackDataIsValid(arrayBuffer) {
   let valid = true;
 
   try {
-    mempackData.forEach((i) => N64MempackSaveData.createFromN64MempackData(i));
+    mempackData.forEach((i) => arrayBufferContainsAllValue(i, EMPTY_MEMPACK_VALUE) || N64MempackSaveData.createFromN64MempackData(i));
   } catch (e) {
-    console.log(e);
     valid = false;
   }
 
@@ -47,7 +55,7 @@ function allMempackDataIsValid(arrayBuffer) {
 export default class MisterN64SaveData {
   static CART_DATA = 'cart-data';
 
-  static MEMPACK_DATA = getAllMempackDataIndexes().map((i) => `${MEMPACK_DATA_INDEX_PREFIX}-${i}`);
+  static MEMPACK_DATA = MEMPACK_DATA_INDEXES.map((i) => `${MEMPACK_DATA_INDEX_PREFIX}-${i}`);
 
   static getMisterFileExtension() {
     return 'sav';
@@ -66,7 +74,7 @@ export default class MisterN64SaveData {
 
     // FIXME: Need to decide whether to have this return null if there's no mempack data, or an array of all nulls, or what
 
-    const rawMempackSaveDatas = getAllMempackDataIndexes().map((i) => misterSaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[i]));
+    const rawMempackSaveDatas = MEMPACK_DATA_INDEXES.map((i) => misterSaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[i]));
 
     return MisterN64SaveData.createFromRawData(newRawCartSaveData, rawMempackSaveDatas);
   }
@@ -91,6 +99,10 @@ export default class MisterN64SaveData {
       // Here we have both cart data and controller pak data
       cartData = misterArrayBuffer.slice(0, ALL_MEMPACK_SIZE - misterArrayBuffer.byteLength);
       allMempackData = misterArrayBuffer.slice(ALL_MEMPACK_SIZE - misterArrayBuffer.byteLength);
+    } else if (arrayBufferContainsAllValue(misterArrayBuffer, EMPTY_MEMPACK_VALUE)) {
+      // Here it could be either an empty Flash RAM file or 4 empty mempacks
+      cartData = misterArrayBuffer;
+      allMempackData = misterArrayBuffer;
     } else if (allMempackDataIsValid(misterArrayBuffer)) {
       // Here there is some non-zero data but the size indicated that it could be either a Flash RAM save with no controller pak data,
       // or no cart save and just controller pak data. So, we will try to parse it as controller pak data to determine which it is
@@ -129,7 +141,7 @@ export default class MisterN64SaveData {
       return this.rawCartArrayBuffer;
     }
 
-    if (index.beginsWith(MEMPACK_DATA_INDEX_PREFIX)) {
+    if (index.startsWith(MEMPACK_DATA_INDEX_PREFIX)) {
       if (this.rawMempackArrayBuffers === null) {
         return null;
       }

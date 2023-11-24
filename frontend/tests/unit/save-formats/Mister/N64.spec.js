@@ -18,6 +18,7 @@ const MISTER_FLASH_RAM_FILENAME = `${DIR}/Legend_of_Zelda_The_-_Majoras_Mask_USA
 
 const MISTER_AMBIGUOUS_EMPTY_SAVE_FILENAME = `${DIR}/Ambiguous_empty_save.sav`;
 const RAW_EMPTY_FLASH_RAM_FILENAME = `${DIR}/Empty_save.fla`;
+const RAW_EMPTY_MEMPACK_FILENAME = `${DIR}/Empty_mempack.mpk`;
 
 describe('MiSTer - N64 save format', () => {
   it('should convert a raw 4kb EEPROM save to the MiSTer format', async () => {
@@ -94,14 +95,15 @@ describe('MiSTer - N64 save format', () => {
 
   it('should convert an ambiguous MiSTer Flash RAM / controller pak save to both formats', async () => {
     const rawCartArrayBuffer = await ArrayBufferUtil.readArrayBuffer(RAW_EMPTY_FLASH_RAM_FILENAME);
+    const rawMempackArrayBuffer = await ArrayBufferUtil.readArrayBuffer(RAW_EMPTY_MEMPACK_FILENAME);
     const misterArrayBuffer = await ArrayBufferUtil.readArrayBuffer(MISTER_AMBIGUOUS_EMPTY_SAVE_FILENAME);
 
     const misterN64SaveData = MisterN64SaveData.createFromMisterData(misterArrayBuffer);
 
     expect(ArrayBufferUtil.arrayBuffersEqual(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.CART_DATA), rawCartArrayBuffer)).to.equal(true);
-    expect(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[0])).to.equal(null);
-    expect(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[1])).to.equal(null);
-    expect(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[2])).to.equal(null);
-    expect(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[3])).to.equal(null);
+    expect(ArrayBufferUtil.arrayBuffersEqual(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[0]), rawMempackArrayBuffer)).to.equal(true);
+    expect(ArrayBufferUtil.arrayBuffersEqual(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[1]), rawMempackArrayBuffer)).to.equal(true);
+    expect(ArrayBufferUtil.arrayBuffersEqual(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[2]), rawMempackArrayBuffer)).to.equal(true);
+    expect(ArrayBufferUtil.arrayBuffersEqual(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[3]), rawMempackArrayBuffer)).to.equal(true);
   });
 });
