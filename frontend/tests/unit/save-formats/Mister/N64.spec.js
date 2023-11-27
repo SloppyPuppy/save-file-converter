@@ -215,6 +215,43 @@ describe('MiSTer - N64 save format', () => {
     expect(n64MempackSaveData3.getSaveFiles().length).to.equal(0);
   });
 
+  it('should convert a raw 4kb EEPROM + 1 Controller Pak save to MiSTer format', async () => {
+    const rawCartArrayBuffer = await ArrayBufferUtil.readArrayBuffer(RAW_4_KBIT_EEPROM_AND_ONE_MEMPACK_CART_FILENAME);
+    const rawMempackArrayBuffer = await ArrayBufferUtil.readArrayBuffer(RAW_4_KBIT_EEPROM_AND_ONE_MEMPACK_MEMPACK_FILENAME);
+    const rawEmptyMempackArrayBuffer = await ArrayBufferUtil.readArrayBuffer(RAW_4_KBIT_EEPROM_AND_EMPTY_MEMPACK_MEMPACK_FILENAME);
+    const misterArrayBuffer = await ArrayBufferUtil.readArrayBuffer(MISTER_4_KBIT_EEPROM_AND_ONE_MEMPACK_FILENAME);
+
+    const misterN64SaveData = MisterN64SaveData.createFromRawData(rawCartArrayBuffer, [rawMempackArrayBuffer, rawEmptyMempackArrayBuffer, rawEmptyMempackArrayBuffer, rawEmptyMempackArrayBuffer]);
+
+    expect(ArrayBufferUtil.arrayBuffersEqual(misterN64SaveData.getMisterArrayBuffer(), misterArrayBuffer)).to.equal(true);
+
+    expect(ArrayBufferUtil.arrayBuffersEqual(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.CART_DATA), rawCartArrayBuffer)).to.equal(true);
+    expect(ArrayBufferUtil.arrayBuffersEqual(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[0]), rawMempackArrayBuffer)).to.equal(true);
+    expect(ArrayBufferUtil.arrayBuffersEqual(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[1]), rawEmptyMempackArrayBuffer)).to.equal(true);
+    expect(ArrayBufferUtil.arrayBuffersEqual(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[2]), rawEmptyMempackArrayBuffer)).to.equal(true);
+    expect(ArrayBufferUtil.arrayBuffersEqual(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[3]), rawEmptyMempackArrayBuffer)).to.equal(true);
+
+    const n64MempackSaveData0 = N64MempackSaveData.createFromN64MempackData(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[0]));
+    const n64MempackSaveData1 = N64MempackSaveData.createFromN64MempackData(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[1]));
+    const n64MempackSaveData2 = N64MempackSaveData.createFromN64MempackData(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[2]));
+    const n64MempackSaveData3 = N64MempackSaveData.createFromN64MempackData(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[3]));
+
+    expect(n64MempackSaveData0.getSaveFiles().length).to.equal(1);
+    expect(n64MempackSaveData0.getSaveFiles()[0].startingPage).to.equal(5);
+    expect(n64MempackSaveData0.getSaveFiles()[0].pageNumbers.length).to.equal(121);
+    expect(n64MempackSaveData0.getSaveFiles()[0].noteName).to.equal('MARIOKART64');
+    expect(n64MempackSaveData0.getSaveFiles()[0].noteNameExtension).to.equal('');
+    expect(n64MempackSaveData0.getSaveFiles()[0].gameSerialCode).to.equal('NKTJ');
+    expect(n64MempackSaveData0.getSaveFiles()[0].publisherCode).to.equal('01');
+    expect(n64MempackSaveData0.getSaveFiles()[0].region).to.equal('J');
+    expect(n64MempackSaveData0.getSaveFiles()[0].regionName).to.equal('Japan');
+    expect(n64MempackSaveData0.getSaveFiles()[0].media).to.equal('N');
+
+    expect(n64MempackSaveData1.getSaveFiles().length).to.equal(0);
+    expect(n64MempackSaveData2.getSaveFiles().length).to.equal(0);
+    expect(n64MempackSaveData3.getSaveFiles().length).to.equal(0);
+  });
+
   // FIXME: Need to add tests for making the mister version of the file
   // FIXME: These tests need to include random nulls in the array of mempacks, to make sure they get turned into empty mempacks
 });
