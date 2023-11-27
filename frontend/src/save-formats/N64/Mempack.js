@@ -606,7 +606,7 @@ export default class N64MempackSaveData {
       throw new Error(`Found ${saveFiles.length} notes, but max is ${NUM_NOTES}`);
     }
 
-    const totalSize = saveFiles.reduce((accumulator, x) => accumulator + x.rawData.byteLength);
+    const totalSize = saveFiles.reduce((accumulator, x) => accumulator + x.rawData.byteLength, 0);
 
     if (totalSize > MAX_DATA_SIZE) {
       throw new Error(`Total size of notes is ${totalSize} bytes, but max is ${MAX_DATA_SIZE}`);

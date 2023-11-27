@@ -116,11 +116,13 @@ export default class MisterN64SaveData {
     return new MisterN64SaveData(cartData, allMempackArrayBuffers, misterArrayBuffer);
   }
 
-  static createFromRawData(rawCartArrayBuffer, rawMempackArrayBuffers = null) {
+  static createFromRawData(rawCartArrayBuffer, rawMempackArrayBuffers = null, randomNumberGenerator = null) {
     let misterArrayBuffer = rawCartArrayBuffer;
 
     if (rawMempackArrayBuffers !== null) {
-      const rawMempackArrayBuffersNonNull = rawMempackArrayBuffers.map((arrayBuffer) => ((arrayBuffer !== null) ? arrayBuffer : N64MempackSaveData.createFromSaveFiles([])));
+      const rawMempackArrayBuffersNonNull = rawMempackArrayBuffers.map(
+        (arrayBuffer) => ((arrayBuffer !== null) ? arrayBuffer : N64MempackSaveData.createFromSaveFiles([], randomNumberGenerator).getArrayBuffer()),
+      );
       const rawMempackArrayBuffersEndianSwapped = rawMempackArrayBuffersNonNull.map((arrayBuffer) => N64Util.endianSwap(arrayBuffer, 'bigToLittleEndian'));
       const misterArrayBufferSections = [rawCartArrayBuffer].concat(rawMempackArrayBuffersEndianSwapped);
 

@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+import seedrandom from 'seedrandom';
 import MisterN64SaveData from '@/save-formats/Mister/N64';
 import N64MempackSaveData from '@/save-formats/N64/Mempack';
 import ArrayBufferUtil from '#/util/ArrayBuffer';
@@ -25,7 +26,19 @@ const RAW_4_KBIT_EEPROM_AND_ONE_MEMPACK_CART_FILENAME = `${DIR}/Mario_Kart_64_US
 const RAW_4_KBIT_EEPROM_AND_ONE_MEMPACK_MEMPACK_FILENAME = `${DIR}/Mario_Kart_64_USA_ghost.mpk`;
 const MISTER_4_KBIT_EEPROM_AND_ONE_MEMPACK_FILENAME = `${DIR}/Mario_Kart_64_USA_ghost.sav`;
 
+const MISTER_4_KBIT_EEPROM_AND_ONE_MEMPACK_WITH_NULLS_FILENAME = `${DIR}/Mario_Kart_64_USA_ghost_with_nulls.sav`;
+
 describe('MiSTer - N64 save format', () => {
+  let randomNumberGenerator = null;
+
+  before(() => {
+    // Replace Math.random() so that the results are predictable
+    // We can't just override the global Math.random() because these tests run concurrently with tests of the
+    // N64 dexdrive format, which also depends on random numbers. When they execute concurrently, re-seeding
+    // causes unpredictable results
+    randomNumberGenerator = seedrandom('Star Fox 64 is the only actually good game on N64');
+  });
+
   it('should convert a raw 4kb EEPROM save to the MiSTer format', async () => {
     const rawArrayBuffer = await ArrayBufferUtil.readArrayBuffer(RAW_4_KBIT_EEPROM_FILENAME);
     const misterArrayBuffer = await ArrayBufferUtil.readArrayBuffer(MISTER_4_KBIT_EEPROM_FILENAME);
@@ -159,7 +172,11 @@ describe('MiSTer - N64 save format', () => {
     const rawMempackArrayBuffer = await ArrayBufferUtil.readArrayBuffer(RAW_4_KBIT_EEPROM_AND_EMPTY_MEMPACK_MEMPACK_FILENAME);
     const misterArrayBuffer = await ArrayBufferUtil.readArrayBuffer(MISTER_4_KBIT_EEPROM_AND_EMPTY_MEMPACK_FILENAME);
 
-    const misterN64SaveData = MisterN64SaveData.createFromRawData(rawCartArrayBuffer, [rawMempackArrayBuffer, rawMempackArrayBuffer, rawMempackArrayBuffer, rawMempackArrayBuffer]);
+    const misterN64SaveData = MisterN64SaveData.createFromRawData(
+      rawCartArrayBuffer,
+      [rawMempackArrayBuffer, rawMempackArrayBuffer, rawMempackArrayBuffer, rawMempackArrayBuffer],
+      randomNumberGenerator,
+    );
 
     expect(ArrayBufferUtil.arrayBuffersEqual(misterN64SaveData.getMisterArrayBuffer(), misterArrayBuffer)).to.equal(true);
 
@@ -221,7 +238,11 @@ describe('MiSTer - N64 save format', () => {
     const rawEmptyMempackArrayBuffer = await ArrayBufferUtil.readArrayBuffer(RAW_4_KBIT_EEPROM_AND_EMPTY_MEMPACK_MEMPACK_FILENAME);
     const misterArrayBuffer = await ArrayBufferUtil.readArrayBuffer(MISTER_4_KBIT_EEPROM_AND_ONE_MEMPACK_FILENAME);
 
-    const misterN64SaveData = MisterN64SaveData.createFromRawData(rawCartArrayBuffer, [rawMempackArrayBuffer, rawEmptyMempackArrayBuffer, rawEmptyMempackArrayBuffer, rawEmptyMempackArrayBuffer]);
+    const misterN64SaveData = MisterN64SaveData.createFromRawData(
+      rawCartArrayBuffer,
+      [rawMempackArrayBuffer, rawEmptyMempackArrayBuffer, rawEmptyMempackArrayBuffer, rawEmptyMempackArrayBuffer],
+      randomNumberGenerator,
+    );
 
     expect(ArrayBufferUtil.arrayBuffersEqual(misterN64SaveData.getMisterArrayBuffer(), misterArrayBuffer)).to.equal(true);
 
@@ -252,6 +273,37 @@ describe('MiSTer - N64 save format', () => {
     expect(n64MempackSaveData3.getSaveFiles().length).to.equal(0);
   });
 
-  // FIXME: Need to add tests for making the mister version of the file
-  // FIXME: These tests need to include random nulls in the array of mempacks, to make sure they get turned into empty mempacks
+  it('should convert a raw 4kb EEPROM + 1 Controller Pak save with nulls for other Controller Paks to MiSTer format', async () => {
+    const rawCartArrayBuffer = await ArrayBufferUtil.readArrayBuffer(RAW_4_KBIT_EEPROM_AND_ONE_MEMPACK_CART_FILENAME);
+    const rawMempackArrayBuffer = await ArrayBufferUtil.readArrayBuffer(RAW_4_KBIT_EEPROM_AND_ONE_MEMPACK_MEMPACK_FILENAME);
+    const misterArrayBuffer = await ArrayBufferUtil.readArrayBuffer(MISTER_4_KBIT_EEPROM_AND_ONE_MEMPACK_WITH_NULLS_FILENAME);
+
+    const misterN64SaveData = MisterN64SaveData.createFromRawData(
+      rawCartArrayBuffer,
+      [rawMempackArrayBuffer, null, null, null],
+      randomNumberGenerator,
+    );
+
+    expect(ArrayBufferUtil.arrayBuffersEqual(misterN64SaveData.getMisterArrayBuffer(), misterArrayBuffer)).to.equal(true);
+
+    expect(ArrayBufferUtil.arrayBuffersEqual(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.CART_DATA), rawCartArrayBuffer)).to.equal(true);
+    expect(ArrayBufferUtil.arrayBuffersEqual(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[0]), rawMempackArrayBuffer)).to.equal(true);
+
+    const n64MempackSaveData0 = N64MempackSaveData.createFromN64MempackData(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[0]));
+
+    expect(n64MempackSaveData0.getSaveFiles().length).to.equal(1);
+    expect(n64MempackSaveData0.getSaveFiles()[0].startingPage).to.equal(5);
+    expect(n64MempackSaveData0.getSaveFiles()[0].pageNumbers.length).to.equal(121);
+    expect(n64MempackSaveData0.getSaveFiles()[0].noteName).to.equal('MARIOKART64');
+    expect(n64MempackSaveData0.getSaveFiles()[0].noteNameExtension).to.equal('');
+    expect(n64MempackSaveData0.getSaveFiles()[0].gameSerialCode).to.equal('NKTJ');
+    expect(n64MempackSaveData0.getSaveFiles()[0].publisherCode).to.equal('01');
+    expect(n64MempackSaveData0.getSaveFiles()[0].region).to.equal('J');
+    expect(n64MempackSaveData0.getSaveFiles()[0].regionName).to.equal('Japan');
+    expect(n64MempackSaveData0.getSaveFiles()[0].media).to.equal('N');
+
+    expect(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[1])).to.equal(null);
+    expect(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[2])).to.equal(null);
+    expect(misterN64SaveData.getRawArrayBuffer(MisterN64SaveData.MEMPACK_DATA[3])).to.equal(null);
+  });
 });
