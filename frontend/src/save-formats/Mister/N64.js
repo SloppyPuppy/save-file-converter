@@ -18,6 +18,7 @@ There's a bit of discussion about the format here: https://github.com/RobertPeip
 */
 
 import N64Util from '../../util/N64';
+import Util from '../../util/util';
 import N64MempackSaveData from '../N64/Mempack';
 import SaveFilesUtil from '../../util/SaveFiles';
 
@@ -116,8 +117,17 @@ export default class MisterN64SaveData {
   }
 
   static createFromRawData(rawCartArrayBuffer, rawMempackArrayBuffers = null) {
-    // FIXME: Gotta concatenate everything together
-    return new MisterN64SaveData(rawCartArrayBuffer, rawMempackArrayBuffers, rawCartArrayBuffer);
+    let misterArrayBuffer = rawCartArrayBuffer;
+
+    if (rawMempackArrayBuffers !== null) {
+      const rawMempackArrayBuffersNonNull = rawMempackArrayBuffers.map((arrayBuffer) => ((arrayBuffer !== null) ? arrayBuffer : N64MempackSaveData.createFromSaveFiles([])));
+      const rawMempackArrayBuffersEndianSwapped = rawMempackArrayBuffersNonNull.map((arrayBuffer) => N64Util.endianSwap(arrayBuffer, 'bigToLittleEndian'));
+      const misterArrayBufferSections = [rawCartArrayBuffer].concat(rawMempackArrayBuffersEndianSwapped);
+
+      misterArrayBuffer = Util.concatArrayBuffers(misterArrayBufferSections);
+    }
+
+    return new MisterN64SaveData(rawCartArrayBuffer, rawMempackArrayBuffers, misterArrayBuffer);
   }
 
   // This constructor creates a new object from a binary representation of a MiSTer save data file
