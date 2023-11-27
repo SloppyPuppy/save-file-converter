@@ -12,7 +12,7 @@ In most cases we can tell what the file contains by checking its size: 0x20000 b
 However the file size of a Flash RAM save is the same as a save that's just the 4 mempacks. We can attempt to disambiguate by trying to parse the mempack blocks.
 Bad luck may result in a Flash RAM file that accidentally parses as mempack blocks.
 
-The cart save (if any) is always in emulator endian, and the mempack data (if any) needs to be endian swapped to work on an emulator.x
+The cart save (if any) is always in emulator endian, and the mempack data (if any) needs to be endian swapped to work on an emulator.
 
 There's a bit of discussion about the format here: https://github.com/RobertPeip/Mister64/issues/12
 */
